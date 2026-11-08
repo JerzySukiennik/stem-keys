@@ -47,7 +47,7 @@ x = torch.from_numpy(wav.T.copy())
 ref = x.mean(0)
 mu, sd = ref.mean(), ref.std()
 with torch.no_grad():
-    sep = apply_model(model, ((x - mu) / sd)[None].to(next(model.parameters()).device), shifts=2, split=True, overlap=0.25, progress=False)[0]
+    sep = apply_model(model, ((x - mu) / sd)[None].to(next(model.parameters()).device), shifts=2 if torch.cuda.is_available() else 1, split=True, overlap=0.25, progress=False)[0]
 sep = (sep * sd + mu).cpu().numpy()
 STEMS = {name: sep[i] for i, name in enumerate(model.sources)}
 del model, sep, x

@@ -61,7 +61,7 @@ def meta_from(info):
             artist, title = artist or a.strip(), title or t.strip()
         else:
             title = title or raw
-            artist = artist or re.sub(r"\s*-\s*Topic$", "", info.get("channel", "")).replace("VEVO", "").strip()
+            artist = artist or re.sub(r"\s*-?\s*Topic(\s*\d+)?$", "", info.get("channel", "")).replace("VEVO", "").strip()
     artist = artist.split(",")[0].strip()
     return {"title": clean_title(title), "artist": artist, "source": info.get("webpage_url"), "duration": info.get("duration")}
 
@@ -118,6 +118,14 @@ def run(query, vid=None):
             time.sleep(10)
         code, out = kaggle("kernels", "push", "-p", str(work / "kn"))
         log("kernel", out.splitlines()[-1] if out else code)
+        if "GPU quota" in out:
+            km = json.load(open(work / "kn/kernel-metadata.json"))
+            km["enable_gpu"] = False
+            json.dump(km, open(work / "kn/kernel-metadata.json", "w"))
+            code, out = kaggle("kernels", "push", "-p", str(work / "kn"))
+            log("kernel on CPU", out.splitlines()[-1] if out else code)
+        if "error" in out.lower() or "successfully pushed" not in out:
+            sys.exit(f"kernel push failed: {out[-300:]}")
         t0, status = time.time(), ""
         while time.time() - t0 < 45 * 60:
             time.sleep(30)
