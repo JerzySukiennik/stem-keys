@@ -94,7 +94,16 @@ class AplusInstrument {
         const d = (1 - w) * aplusEnvDb(lo, f, freq, hop) + w * aplusEnvDb(hi, f, freq, hop);
         amp[(j - 1) * Fx + f] = Math.pow(10, d / 20);
       }
-      if (j <= 12) bars[j - 1] = amp[(j - 1) * Fx + Math.min(Fx - 1, Math.round(0.3 / hop))];
+      const base = (j - 1) * Fx;
+      const fa = Math.round(0.08 / hop), fr = Math.round(0.2 / hop);
+      if (decay) {
+        for (let f = fa + 1; f < Fx; f++) amp[base + f] = Math.min(amp[base + f], amp[base + f - 1]);
+      } else {
+        let ref = 0;
+        for (let f = 0; f <= Math.min(fr, Fx - 1); f++) ref = Math.max(ref, amp[base + f]);
+        for (let f = fr + 1; f < Fx; f++) amp[base + f] = Math.min(amp[base + f], ref * 1.4);
+      }
+      if (j <= 12) bars[j - 1] = amp[base + Math.min(Fx - 1, Math.round(0.3 / hop))];
     }
     if (!decay) {
       const fl = { ls: ls / hop, Lp: Lp / hop };
@@ -130,9 +139,10 @@ class AplusInstrument {
       }
     }
     const a0 = Math.round(0.05 * sr), a1 = Math.min(N, Math.round(0.35 * sr));
-    let e = 0;
+    let e = 0, pk = 0;
     for (let i = a0; i < a1; i++) e += L[i] * L[i] + R[i] * R[i];
-    const g = 0.1 / Math.sqrt(e / (2 * (a1 - a0)) + 1e-12);
+    for (let i = 0; i < N; i++) pk = Math.max(pk, Math.abs(L[i]), Math.abs(R[i]));
+    const g = Math.min(0.1 / Math.sqrt(e / (2 * (a1 - a0)) + 1e-12), 0.6 / (pk + 1e-12));
     const fin = Math.round(0.002 * sr);
     const fout = decay ? Math.round(0.3 * sr) : 0;
     for (let i = 0; i < N; i++) {

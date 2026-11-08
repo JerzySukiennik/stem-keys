@@ -107,7 +107,7 @@ def run(query, vid=None):
     json.dump({"title": ds.replace("-", " "), "id": f"{USER}/{ds}", "licenses": [{"name": "unknown"}], "isPrivate": True}, open(work / "ds/dataset-metadata.json", "w"))
     shutil.copy(TOOLS / "kaggle/pipeline.py", work / "kn/pipeline.py")
     json.dump({"id": f"{USER}/{kn}", "title": kn.replace("-", " "), "code_file": "pipeline.py", "language": "python", "kernel_type": "script", "is_private": True,
-               "enable_gpu": True, "enable_internet": True, "dataset_sources": [f"{USER}/{ds}"], "competition_sources": [], "kernel_sources": []}, open(work / "kn/kernel-metadata.json", "w"))
+               "enable_gpu": False, "enable_internet": True, "dataset_sources": [f"{USER}/{ds}"], "competition_sources": [], "kernel_sources": []}, open(work / "kn/kernel-metadata.json", "w"))
     try:
         code, out = kaggle("datasets", "create", "-p", str(work / "ds"))
         log("dataset", code, out.splitlines()[-1] if out else "")
