@@ -1,0 +1,5 @@
+sounds/
+Niepotrzebne/*
+!Niepotrzebne/tools/
+!Niepotrzebne/devserver.py
+.DS_Store
