@@ -6,8 +6,8 @@ os.makedirs(run, exist_ok=True)
 for f in os.listdir(src):
     shutil.copy(os.path.join(src, f), run)
 open(f"{run}/package.json", "w").write('{"type": "module"}')
-subprocess.run("curl -sL https://nodejs.org/dist/v22.11.0/node-v22.11.0-linux-x64.tar.xz | tar -xJ -C /kaggle/working", shell=True, check=True)
-node = "/kaggle/working/node-v22.11.0-linux-x64/bin/node"
+subprocess.run("curl -sL https://nodejs.org/dist/v22.11.0/node-v22.11.0-linux-x64.tar.xz | tar -xJ -C /tmp", shell=True, check=True)
+node = "/tmp/node-v22.11.0-linux-x64/bin/node"
 cpus = os.cpu_count()
 print("cpus", cpus)
 env = dict(os.environ, SYNTH_CORE=f"file://{run}/synth-core.js")
