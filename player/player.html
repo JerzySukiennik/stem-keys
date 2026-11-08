@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{TITLE}}</title>
+<style>{{FONTS}}{{STYLE}}</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="back" href="../Biblioteka.html">Biblioteka</a>
+    <div class="song">
+      <img class="cover" id="cover" alt="">
+      <div class="song-text">
+        <h1 id="title"></h1>
+        <div class="artist" id="artist"></div>
+      </div>
+    </div>
+    <div class="pill" id="midiPill"><i></i><span id="midiName">MIDI</span></div>
+  </header>
+
+  <section class="band" aria-label="Podkład">
+    <button class="play" id="bandPlay" aria-label="Graj podkład">
+      <svg viewBox="0 0 24 24" class="i-play"><path d="M7 4.5v15l13-7.5z"/></svg>
+      <svg viewBox="0 0 24 24" class="i-pause"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg>
+    </button>
+    <div class="band-main">
+      <div class="band-line">
+        <span class="eyebrow">Podkład</span>
+        <span class="band-without" id="bandWithout"></span>
+        <span class="time" id="bandTime">0:00</span>
+      </div>
+      <input type="range" class="seek" id="bandSeek" min="0" max="1000" value="0" aria-label="Pozycja w piosence">
+    </div>
+    <label class="mini">
+      <span class="mini-top"><span class="eyebrow">Tempo</span><output id="tempoOut">100%</output></span>
+      <input type="range" id="tempo" min="50" max="100" step="5" value="100">
+    </label>
+    <label class="mini">
+      <span class="mini-top"><span class="eyebrow">Głośność</span><output id="bandVolOut">80%</output></span>
+      <input type="range" id="bandVol" min="0" max="1" step="0.01" value="0.8">
+    </label>
+  </section>
+
+  <section class="block">
+    <div class="block-head">
+      <h2 class="eyebrow">Brzmienia z piosenki</h2>
+      <span class="block-note" id="soundsNote"></span>
+    </div>
+    <div class="sounds" id="sounds"></div>
+  </section>
+
+  <section class="block">
+    <div class="block-head">
+      <h2 class="eyebrow">Klawiatura</h2>
+      <div class="modes" id="modes" role="radiogroup" aria-label="Układ klawiatury">
+        <button role="radio" data-mode="single">Jedno brzmienie</button>
+        <button role="radio" data-mode="split">Podział</button>
+        <button role="radio" data-mode="layer">Warstwa</button>
+      </div>
+    </div>
+    <div class="hands" id="hands"></div>
+  </section>
+
+  <section class="kb-block">
+    <div class="kb-bar">
+      <span class="kb-info">Klawiatura komputera od <b id="octName">C4</b>: <kbd>A</kbd>–<kbd>K</kbd> białe, <kbd>W</kbd> <kbd>E</kbd> <kbd>T</kbd> <kbd>Y</kbd> <kbd>U</kbd> czarne, <kbd>Z</kbd> <kbd>X</kbd> oktawa. Pedał działa.</span>
+      <button class="ghost" id="setSplit">Ustaw podział</button>
+    </div>
+    <div class="kb-wrap"><div class="kb" id="kb"></div></div>
+  </section>
+</div>
+
+<div class="gate" id="gate"><button id="gateBtn">Włącz dźwięk</button></div>
+<audio id="band" preload="auto"></audio>
+<script src="dane.js"></script>
+<script>const WORKLET_SRC = {{WORKLET}};</script>
+<script>{{SCRIPT}}</script>
+</body>
+</html>

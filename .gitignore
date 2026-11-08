@@ -1,5 +1,7 @@
 sounds/
+biblioteka/
 Niepotrzebne/*
 !Niepotrzebne/tools/
 !Niepotrzebne/devserver.py
 .DS_Store
+__pycache__/

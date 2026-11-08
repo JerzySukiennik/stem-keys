@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stem Keys</title>
+<style>{{FONTS}}
+:root {
+  --bg: #101318; --panel: #161a21; --panel-2: #1c212a; --line: #2a303b; --line-2: #363d4a;
+  --text: #ebe8e1; --dim: #8e94a0; --faint: #59606d; --right: #f3b45b;
+  --display: "Michroma", -apple-system, sans-serif;
+  --body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font: 15px/1.45 var(--body); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+main { max-width: 1180px; margin: 0 auto; padding: 40px 16px 60px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+h1 { font: 400 34px/1.1 var(--display); margin: 0; letter-spacing: 0.01em; }
+.count { font: 400 10.5px/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.lead { color: var(--dim); max-width: 560px; margin: 12px 0 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-top: 30px; }
+.card { display: grid; grid-template-columns: 112px 1fr; gap: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px; color: inherit; text-decoration: none; transition: border-color 0.15s ease; }
+.card:hover { border-color: var(--right); }
+.card:focus-visible { outline: 2px solid var(--right); outline-offset: 2px; }
+.card img, .noimg { width: 112px; height: 112px; border-radius: 12px; object-fit: cover; background: var(--panel-2); }
+.ct { min-width: 0; }
+h2 { font: 400 16px/1.25 var(--display); margin: 4px 0 0; overflow-wrap: anywhere; }
+.ct p { color: var(--dim); margin: 4px 0 10px; font-size: 13.5px; }
+ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--dim); }
+li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+li em { font: normal 11.5px ui-monospace, "SF Mono", Menlo, monospace; color: var(--faint); }
+.bars { display: flex; align-items: flex-end; gap: 2px; height: 16px; width: 54px; flex: none; }
+.bars i { flex: 1; border-radius: 2px 2px 1px 1px; background: rgba(243, 180, 91, 0.45); min-height: 1px; }
+.empty { color: var(--dim); margin-top: 30px; }
+@media (max-width: 420px) { .card { grid-template-columns: 80px 1fr; } .card img, .noimg { width: 80px; height: 80px; } h1 { font-size: 26px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Stem Keys</h1>
+    <span class="count">Piosenki: {{COUNT}}</span>
+  </header>
+  <p class="lead">Brzmienia wyciągnięte z piosenek, do grania na klawiaturze. Otwórz piosenkę, wybierz brzmienie i graj z jej własnym podkładem.</p>
+  <div class="grid">{{CARDS}}</div>
+</main>
+</body>
+</html>

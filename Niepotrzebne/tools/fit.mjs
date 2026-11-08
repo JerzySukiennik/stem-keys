@@ -43,7 +43,7 @@ if (!isMainThread) {
     workers[i % W].postMessage({ id, x });
   })));
 
-  const start = {
+  const start = process.env.START_PARAMS ? JSON.parse(process.env.START_PARAMS) : {
     sawA: 0.8, sawB: 0.05, pulA: 0.05, pulB: 0.5, sinA: 0.05, sinB: 0.05, sinC: 0.3, noise: 0.01,
     pw: 0.3, det: 6, cut: 12, envAmt: 36, fdec: 0.25, res: 1.5, hp: -24,
     atk: 0.004, dec: 0.6, sus: 0.2, rel: 0.3, dlyMix: 0.35, dlyFb: 0.35, dlyDamp: 4000, dlyTime: 0.4875,
