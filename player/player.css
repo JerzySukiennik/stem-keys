@@ -19,7 +19,15 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
 body { font: 15px/1.45 var(--body); -webkit-font-smoothing: antialiased; min-height: 100vh; }
-button { font: inherit; color: inherit; }
+button { font: inherit; color: inherit; touch-action: manipulation; }
+.kb-nav { display: none; align-items: center; gap: 8px; }
+.kb-nav span { font: 11.5px var(--mono); color: var(--dim); min-width: 64px; text-align: center; }
+.kb-nav .ghost { padding: 6px 12px; }
+body.compact .kb-nav { display: inline-flex; }
+body.compact .kb-info { display: none; }
+body.compact .pill:not(.live) { display: none; }
+body.compact .kb-wrap { overflow: hidden; padding: 8px; }
+body.compact .wk .cname { font-size: 7.5px; bottom: 9px; }
 :focus-visible { outline: 2px solid var(--right); outline-offset: 2px; }
 .app { max-width: 1180px; margin: 0 auto; padding: 22px 16px 0; }
 
@@ -159,9 +167,8 @@ kbd { font: 11px var(--mono); border: 1px solid var(--line-2); border-bottom-wid
   .hands { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
-  .kb-block { position: static; background: none; }
-  .kb-info { display: none; }
-  .kb-bar { justify-content: flex-end; }
+  .kb { height: 150px; }
+  .kb-block { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
   .pill { grid-column: 1 / -1; justify-self: start; }
   .top { grid-template-columns: 1fr auto; }
   .back { grid-column: 1 / -1; justify-self: start; }

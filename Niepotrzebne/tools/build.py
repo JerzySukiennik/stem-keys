@@ -114,6 +114,8 @@ def build_library():
     page = page.replace("{{FONTS}}", fonts_css()).replace("{{CARDS}}", body).replace("{{COUNT}}", str(len(cards)))
     LIB.mkdir(exist_ok=True)
     (LIB / "Biblioteka.html").write_text(page)
+    core = strip_module((ROOT / "synth-core.js").read_text())
+    (LIB / "worklet.js").write_text(core + "\n" + strip_module((ROOT / "synth-worklet.js").read_text()))
     return LIB / "Biblioteka.html"
 
 

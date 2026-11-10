@@ -196,6 +196,7 @@ function playRange(c) {
 
 async function startAudio() {
   if (ctx) return;
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch {}
   ctx = new AudioContext({ latencyHint: "interactive" });
   master = ctx.createGain();
   master.gain.value = 0.9;
@@ -209,11 +210,20 @@ async function startAudio() {
   convolver = ctx.createConvolver();
   convolver.buffer = makeIR(2.2);
   convolver.connect(master);
-  workletReady = ctx.audioWorklet.addModule("data:text/javascript;charset=utf-8," + encodeURIComponent(WORKLET_SRC));
+  workletReady = loadWorklet();
   engines.left = new HandEngine("left");
   engines.right = new HandEngine("right");
   await applyHands();
   $("gate").classList.add("hidden");
+}
+
+async function loadWorklet() {
+  const data = "data:text/javascript;charset=utf-8," + encodeURIComponent(WORKLET_SRC);
+  const urls = location.protocol === "file:" ? [data] : ["../worklet.js", data];
+  for (const u of urls) {
+    try { await ctx.audioWorklet.addModule(u); return true; } catch {}
+  }
+  return false;
 }
 
 async function applyHands() {
@@ -540,8 +550,30 @@ function bindKnob(el, h) {
 }
 
 let kbLo = 36, kbHi = 96;
+const compactQ = window.matchMedia("(max-width: 760px), (pointer: coarse)");
+const compact = () => compactQ.matches;
+
+function compactRange() {
+  const wrap = document.querySelector(".kb-wrap");
+  const n = Math.max(8, Math.floor((wrap.clientWidth - 16) / 33));
+  let lo = clamp(state.touchLo ?? defaultTouchLo(), 24, 96);
+  let count = 0, hi = lo;
+  for (let m = lo; count < n && m <= 108; m++) { if (!isBlack(m)) { count++; hi = m; } }
+  return [lo, hi];
+}
+
+function defaultTouchLo() {
+  return state.mode === "split" ? Math.max(24, state.split - 12 - (state.split % 12)) : 60;
+}
+
+function shiftOctave(d) {
+  state.touchLo = clamp((state.touchLo ?? defaultTouchLo()) + 12 * d, 24, 84);
+  save();
+  renderKeyboard();
+}
 
 function ensureRange(m) {
+  if (compact()) return;
   if (m >= kbLo && m <= kbHi) return;
   kbLo = Math.min(kbLo, m - (m % 12));
   kbHi = Math.max(kbHi, m - (m % 12) + 12);
@@ -556,10 +588,18 @@ function zoneColor(m) {
 function renderKeyboard() {
   const kb = $("kb");
   kb.innerHTML = "";
+  document.body.classList.toggle("compact", compact());
+  if (compact()) {
+    [kbLo, kbHi] = compactRange();
+    $("kbRange").textContent = `${noteName(kbLo)}–${noteName(kbHi)}`;
+  } else if (kbLo > 36 || kbHi < 96) {
+    kbLo = Math.min(kbLo, 36);
+    kbHi = Math.max(kbHi, 96);
+  }
   const whites = [];
   for (let m = kbLo; m <= kbHi; m++) if (!isBlack(m)) whites.push(m);
   const W = 100 / whites.length;
-  kb.style.minWidth = Math.max(640, whites.length * 22) + "px";
+  kb.style.minWidth = compact() ? "0" : Math.max(640, whites.length * 22) + "px";
   whites.forEach((m) => {
     const el = document.createElement("div");
     el.className = "wk";
@@ -675,6 +715,7 @@ function onMidi(e) {
 
 const band = $("band");
 band.preservesPitch = true;
+band.webkitPreservesPitch = true;
 let bandKey = null;
 
 function mutedStems() {
@@ -782,6 +823,12 @@ function boot() {
   updateBand();
   setupMIDI();
   $("gateBtn").addEventListener("click", startAudio);
+  $("kbDown").addEventListener("click", () => shiftOctave(-1));
+  $("kbUp").addEventListener("click", () => shiftOctave(1));
+  let rt = null;
+  const relayout = () => { clearTimeout(rt); rt = setTimeout(renderKeyboard, 120); };
+  window.addEventListener("resize", relayout);
+  compactQ.addEventListener?.("change", relayout);
 }
 
 boot();

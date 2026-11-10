@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#101318">
 <title>{{TITLE}}</title>
 <style>{{FONTS}}{{STYLE}}</style>
 </head>
@@ -66,6 +69,7 @@
   <section class="kb-block">
     <div class="kb-bar">
       <span class="kb-info">Klawiatura komputera od <b id="octName">C4</b>: <kbd>A</kbd>–<kbd>K</kbd> białe, <kbd>W</kbd> <kbd>E</kbd> <kbd>T</kbd> <kbd>Y</kbd> <kbd>U</kbd> czarne, <kbd>Z</kbd> <kbd>X</kbd> oktawa. Pedał działa.</span>
+      <div class="kb-nav"><button class="ghost" id="kbDown" aria-label="Oktawa niżej">◀</button><span id="kbRange"></span><button class="ghost" id="kbUp" aria-label="Oktawa wyżej">▶</button></div>
       <button class="ghost" id="setSplit">Ustaw podział</button>
     </div>
     <div class="kb-wrap"><div class="kb" id="kb"></div></div>
