@@ -260,6 +260,10 @@ function noteOn(midi, vel) {
     return;
   }
   if (!ctx || ctx.state !== "running") { pulseGate(); return; }
+  if (bandArmed) {
+    setArmed(false);
+    band.play();
+  }
   const prev = sustained.get(midi) || held.get(midi);
   if (prev) for (const [h, m] of prev) engines[h].off(m);
   sustained.delete(midi);
@@ -751,10 +755,33 @@ function paintRange(el) {
   el.style.setProperty("--p", p + "%");
 }
 
+let bandArmed = false;
+
+function setArmed(v) {
+  bandArmed = v;
+  const b = $("bandPlay");
+  b.classList.toggle("armed", v);
+  b.setAttribute("aria-label", v ? "Anuluj czekanie na klawisz" : "Graj podkład");
+  $("bandHint").hidden = !v;
+  $("bandWithout").hidden = v;
+}
+
+async function unlockBand() {
+  const t = band.currentTime;
+  band.muted = true;
+  try { await band.play(); } catch {}
+  band.pause();
+  band.currentTime = t;
+  band.muted = false;
+}
+
 function bindBand() {
   $("bandPlay").addEventListener("click", async () => {
     await startAudio();
-    if (band.paused) band.play(); else band.pause();
+    if (!band.paused) { band.pause(); return; }
+    if (bandArmed) { setArmed(false); return; }
+    await unlockBand();
+    setArmed(true);
   });
   band.addEventListener("play", () => $("bandPlay").classList.add("on"));
   band.addEventListener("pause", () => $("bandPlay").classList.remove("on"));

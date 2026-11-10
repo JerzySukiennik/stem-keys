@@ -52,6 +52,9 @@ h1 { font: 400 30px/1.1 var(--display); letter-spacing: 0.01em; margin: 0; overf
 .play svg { width: 18px; height: 18px; fill: currentColor; }
 .play .i-pause, .play.on .i-play { display: none; }
 .play.on .i-pause { display: block; }
+.play.armed { background: transparent; color: var(--right); box-shadow: inset 0 0 0 2px var(--right); animation: armed 1.6s ease-in-out infinite; }
+@keyframes armed { 0%, 100% { box-shadow: inset 0 0 0 2px var(--right), 0 0 0 0 rgba(243, 180, 91, 0.35); } 50% { box-shadow: inset 0 0 0 2px var(--right), 0 0 0 8px rgba(243, 180, 91, 0); } }
+.band-hint { color: var(--right); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .band-main { min-width: 0; }
 .band-line { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
 .band-without { color: var(--dim); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
@@ -181,4 +184,5 @@ kbd { font: 11px var(--mono); border: 1px solid var(--line-2); border-bottom-wid
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+  .play.armed { animation: none; }
 }
