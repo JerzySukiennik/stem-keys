@@ -12,22 +12,25 @@ def sh(cmd):
     subprocess.run(cmd, shell=True, check=True)
 
 
-IN = os.path.dirname(glob.glob("/kaggle/input/**/song.flac", recursive=True)[0])
+IN = os.path.dirname(glob.glob("/kaggle/input/**/meta.json", recursive=True)[0])
 W = "/tmp/sk"
 OUT = "/kaggle/working"
 os.makedirs(W, exist_ok=True)
 META = json.load(open(f"{IN}/meta.json"))
+MODE = META.pop("mode", "full")
+GIVEN = {os.path.basename(p)[5:-4]: p for p in glob.glob(f"{IN}/stem_*.m4a")}
 
 sh(f"{sys.executable} -m pip install -q demucs mir_eval pretty_midi 'resampy<0.4.3' onnxruntime 'setuptools<81'")
 sh(f"{sys.executable} -m pip install -q --no-deps basic-pitch==0.4.0")
-sh("curl -sL https://nodejs.org/dist/v22.11.0/node-v22.11.0-linux-x64.tar.xz | tar -xJ -C /tmp")
 NODE = "/tmp/node-v22.11.0-linux-x64/bin/node"
 CODE = f"{W}/code"
-os.makedirs(CODE, exist_ok=True)
-for f in ["synth-core.js", "specloss.mjs", "fit.mjs"]:
-    sh(f"cp '{IN}/{f}' '{CODE}/{f}'")
-open(f"{CODE}/package.json", "w").write('{"type": "module"}')
-log("deps ready")
+if MODE == "full":
+    sh("curl -sL https://nodejs.org/dist/v22.11.0/node-v22.11.0-linux-x64.tar.xz | tar -xJ -C /tmp")
+    os.makedirs(CODE, exist_ok=True)
+    for f in ["synth-core.js", "specloss.mjs", "fit.mjs"]:
+        sh(f"cp '{IN}/{f}' '{CODE}/{f}'")
+    open(f"{CODE}/package.json", "w").write('{"type": "module"}')
+log("deps ready", MODE, "stems given" if GIVEN else "separating here")
 
 import numpy as np
 import soundfile as sf
@@ -37,23 +40,34 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 
-wav, SR = sf.read(f"{IN}/song.flac", dtype="float32", always_2d=True)
-assert SR == 44100
-from demucs.apply import apply_model
-from demucs.pretrained import get_model
+SR = 44100
+if GIVEN:
+    STEMS = {}
+    for name, p in GIVEN.items():
+        sh(f"ffmpeg -hide_banner -loglevel error -y -i '{p}' -ar {SR} -ac 2 '{W}/in_{name}.wav'")
+        STEMS[name] = sf.read(f"{W}/in_{name}.wav", dtype="float32", always_2d=True)[0].T
+    n_min = min(s.shape[1] for s in STEMS.values())
+    STEMS = {k: np.ascontiguousarray(v[:, :n_min]) for k, v in STEMS.items()}
+    DUR = n_min / SR
+    log("stems from the shared library", list(STEMS), round(DUR, 1), "s")
+else:
+    wav, sr_in = sf.read(f"{IN}/song.flac", dtype="float32", always_2d=True)
+    assert sr_in == SR
+    from demucs.apply import apply_model
+    from demucs.pretrained import get_model
 
-model = get_model("htdemucs_6s").to("cuda" if torch.cuda.is_available() else "cpu").eval()
-x = torch.from_numpy(wav.T.copy())
-ref = x.mean(0)
-mu, sd = ref.mean(), ref.std()
-with torch.no_grad():
-    sep = apply_model(model, ((x - mu) / sd)[None].to(next(model.parameters()).device), shifts=2 if torch.cuda.is_available() else 1, split=True, overlap=0.25, progress=False)[0]
-sep = (sep * sd + mu).cpu().numpy()
-STEMS = {name: sep[i] for i, name in enumerate(model.sources)}
-del model, sep, x
-torch.cuda.empty_cache()
-DUR = wav.shape[0] / SR
-log("separated", list(STEMS), round(DUR, 1), "s")
+    model = get_model("htdemucs_6s").to("cuda" if torch.cuda.is_available() else "cpu").eval()
+    x = torch.from_numpy(wav.T.copy())
+    ref = x.mean(0)
+    mu, sd = ref.mean(), ref.std()
+    with torch.no_grad():
+        sep = apply_model(model, ((x - mu) / sd)[None].to(next(model.parameters()).device), shifts=2 if torch.cuda.is_available() else 1, split=True, overlap=0.25, progress=False)[0]
+    sep = (sep * sd + mu).cpu().numpy()
+    STEMS = {name: sep[i] for i, name in enumerate(model.sources)}
+    del model, sep, x
+    torch.cuda.empty_cache()
+    DUR = wav.shape[0] / SR
+    log("separated", list(STEMS), round(DUR, 1), "s")
 
 HOP_S, WIN_S = 0.5, 1.0
 LABEL = {"piano": "Klawisze", "other": "Syntezator", "bass": "Bas"}
@@ -259,8 +273,9 @@ def aplus_model(mono, notes, is_bass):
     return out
 
 
-KEYS_PRIOR = json.load(open(f"{IN}/priors.json"))["keys"]
-BASS_PRIOR = json.load(open(f"{IN}/priors.json"))["bass"]
+PRIORS = json.load(open(f"{IN}/priors.json")) if MODE == "full" else {"keys": {}, "bass": {}}
+KEYS_PRIOR = PRIORS["keys"]
+BASS_PRIOR = PRIORS["bass"]
 
 
 def fit_b(cid, mono, notes, regs, is_bass, echo_lag):
@@ -300,8 +315,10 @@ def encode(path_wav, path_out, kbps):
     sh(f"ffmpeg -hide_banner -loglevel error -y -i '{path_wav}' -c:a aac -b:a {kbps}k '{path_out}'")
 
 
-candidates, used_stems, tunes = [], set(), []
+candidates, used_stems, tunes, TIMELINE = [], set(), [], {}
 for name in ["other", "piano", "bass"]:
+    if name not in STEMS:
+        continue
     mono = STEMS[name].mean(0)
     act = activity(mono)
     p95 = float(np.percentile(act, 95))
@@ -312,12 +329,20 @@ for name in ["other", "piano", "bass"]:
     lag = find_echo(notes)
     mark_echo(notes, lag)
     log(name, "notes", len(notes), "echo", lag)
+    TIMELINE[name] = [[round(n["t"], 3), round(n["dur"], 3), n["midi"]] for n in notes if not n["echo"]]
+    if MODE == "timeline":
+        continue
     for g in discover(name, mono, notes, act):
         regs = regions_of(g)
         ns = [n for n in notes if in_regions(n["t"], regs)]
         if len([n for n in ns if not n["echo"]]) < 12:
             continue
         candidates.append({"stem": name, "regs": regs, "notes": ns, "echo": lag, "mono": mono, "size": len(g) * (10 ** (np.median(act[g]) / 20))})
+
+if MODE == "timeline":
+    json.dump({"timeline": TIMELINE, "duration": DUR}, open(f"{OUT}/timeline.json", "w"))
+    log("timeline only, done", {k: len(v) for k, v in TIMELINE.items()})
+    sys.exit(0)
 
 bass = [c for c in candidates if c["stem"] == "bass"][:1]
 keys = sorted([c for c in candidates if c["stem"] != "bass"], key=lambda c: -c["size"])[: 6 - len(bass)]
@@ -366,5 +391,7 @@ for mask in range(1 << len(order)):
     encode(f"{W}/mix.wav", f"{OUT}/mix_{key}.m4a", 160)
     result["mixes"][key] = f"mix_{key}.m4a"
 log("mixes", list(result["mixes"]))
+result["timeline"] = TIMELINE
+result["meta"]["stems"] = "shared-4" if GIVEN else "6s"
 json.dump(result, open(f"{OUT}/result.json", "w"))
 log("done")

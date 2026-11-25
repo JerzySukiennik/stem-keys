@@ -47,7 +47,19 @@ try {
   const saved = JSON.parse(localStorage.getItem(STORE) || "null");
   if (saved && saved.hands && ["left", "right"].every((h) => saved.hands[h].cand == null || byId.has(saved.hands[h].cand))) state = saved;
 } catch {}
+const GUIDE_LEAD = 0.12;
+const LUMI_RE = /lumi|roli/i;
+const LUMI_COLOUR = 127;
+const guideOn = new Map();
+let guideNotes = { left: [], right: [] };
+let guideDirty = true;
+let guideRaf = 0;
+let lumiOuts = [];
+let lumiSpan = 24;
+let lumiLo = 48;
+
 function save() {
+  guideDirty = true;
   try { localStorage.setItem(STORE, JSON.stringify(state)); } catch {}
 }
 
@@ -631,6 +643,7 @@ function renderKeyboard() {
     kb.appendChild(mk);
   }
   for (const [m, hs] of held) paintKey(m, hs.length ? hs[hs.length - 1][0] : null);
+  for (const [m, h] of guideOn) paintGuide(m, h);
 }
 
 function paintKey(m, hand) {
@@ -638,6 +651,82 @@ function paintKey(m, hand) {
   if (!el) return;
   el.classList.toggle("down", !!hand);
   if (hand) el.style.setProperty("--hit", hand === "left" ? "var(--left)" : "var(--right)");
+}
+
+function guideKey(h, m) {
+  if (state.mode === "split") {
+    if (h === "left") while (m >= state.split) m -= 12;
+    else while (m < state.split) m += 12;
+  }
+  return m;
+}
+
+function guideList(h) {
+  const hs = state.hands[h];
+  const used = h === "right" || state.mode !== "single";
+  const c = used && hs.cand != null ? byId.get(hs.cand) : null;
+  const notes = c && S.timeline ? S.timeline[c.stem] || (c.stem === "piano" ? S.timeline.other : null) : null;
+  if (!notes) return [];
+  return notes
+    .filter(([t, , m]) => m >= c.range[0] && m <= c.range[1] && c.regions.some(([a, b]) => t >= a && t < b))
+    .map(([t, d, m]) => [t, Math.max(d, 0.12), guideKey(h, m - 12 * hs.oct)]);
+}
+
+function paintGuide(m, h) {
+  const el = document.querySelector(`.kb [data-midi="${m}"]`);
+  if (!el) return;
+  el.classList.toggle("guide", !!h);
+  if (h) el.style.setProperty("--g", h === "left" ? "var(--left)" : "var(--right)");
+}
+
+function lumiSend(m, on) {
+  if (m < lumiLo || m >= lumiLo + lumiSpan) return;
+  for (const o of lumiOuts) {
+    try { o.send(on ? [0x90, m, LUMI_COLOUR] : [0x80, m, 0]); } catch {}
+  }
+}
+
+function lumiHeard(m) {
+  const oct = m - (m % 12);
+  if (m < lumiLo) lumiLo = oct;
+  else if (m >= lumiLo + lumiSpan) lumiLo = oct - lumiSpan + 12;
+}
+
+function setGuide(m, h) {
+  if (h) {
+    guideOn.set(m, h);
+    ensureRange(m);
+  } else guideOn.delete(m);
+  paintGuide(m, h);
+  lumiSend(m, !!h);
+}
+
+function clearGuide() {
+  for (const m of [...guideOn.keys()]) setGuide(m, null);
+}
+
+function guideTick() {
+  guideRaf = 0;
+  if (state.guide === false || band.paused || !S.timeline) { clearGuide(); return; }
+  if (guideDirty) {
+    guideNotes = { left: guideList("left"), right: guideList("right") };
+    guideDirty = false;
+  }
+  const t = band.currentTime + GUIDE_LEAD;
+  const want = new Map();
+  for (const h of ["left", "right"]) {
+    for (const [t0, d, m] of guideNotes[h]) {
+      if (t0 > t) break;
+      if (t < t0 + d) want.set(m, h);
+    }
+  }
+  for (const m of [...guideOn.keys()]) if (!want.has(m)) setGuide(m, null);
+  for (const [m, h] of want) if (guideOn.get(m) !== h) setGuide(m, h);
+  guideRaf = requestAnimationFrame(guideTick);
+}
+
+function startGuide() {
+  if (!guideRaf) guideRaf = requestAnimationFrame(guideTick);
 }
 
 function bindKeyboardPointer() {
@@ -701,7 +790,9 @@ function setupMIDI() {
     const refresh = () => {
       const ins = [...access.inputs.values()];
       ins.forEach((i) => { i.onmidimessage = onMidi; });
-      name.textContent = ins.length ? ins.map((i) => i.name).join(", ") : "Podłącz klawiaturę";
+      lumiOuts = [...access.outputs.values()].filter((o) => LUMI_RE.test(o.name));
+      lumiSpan = 24 * Math.max(1, ins.filter((i) => LUMI_RE.test(i.name)).length);
+      name.textContent = (ins.length ? ins.map((i) => i.name).join(", ") : "Podłącz klawiaturę") + (lumiOuts.length && S.timeline ? " · światła" : "");
       pill.classList.toggle("live", ins.length > 0);
     };
     access.onstatechange = refresh;
@@ -712,6 +803,7 @@ function setupMIDI() {
 function onMidi(e) {
   const [st, d1, d2] = e.data;
   const type = st & 0xf0;
+  if ((type === 0x90 || type === 0x80) && LUMI_RE.test((e.target && e.target.name) || "")) lumiHeard(d1);
   if (type === 0x90 && d2 > 0) noteOn(d1, d2 / 127);
   else if (type === 0x80 || (type === 0x90 && d2 === 0)) noteOff(d1);
   else if (type === 0xb0 && d1 === 64) setPedal(d2 >= 64);
@@ -783,7 +875,7 @@ function bindBand() {
     await unlockBand();
     setArmed(true);
   });
-  band.addEventListener("play", () => $("bandPlay").classList.add("on"));
+  band.addEventListener("play", () => { $("bandPlay").classList.add("on"); startGuide(); });
   band.addEventListener("pause", () => $("bandPlay").classList.remove("on"));
   band.addEventListener("timeupdate", () => {
     const d = band.duration || S.duration;
@@ -852,6 +944,18 @@ function boot() {
   $("gateBtn").addEventListener("click", startAudio);
   $("kbDown").addEventListener("click", () => shiftOctave(-1));
   $("kbUp").addEventListener("click", () => shiftOctave(1));
+  const gb = $("guideBtn");
+  if (S.timeline) {
+    gb.hidden = false;
+    gb.classList.toggle("on", state.guide !== false);
+    gb.addEventListener("click", () => {
+      state.guide = state.guide === false;
+      gb.classList.toggle("on", state.guide);
+      save();
+      if (!state.guide) clearGuide();
+      else if (!band.paused) startGuide();
+    });
+  }
   let rt = null;
   const relayout = () => { clearTimeout(rt); rt = setTimeout(renderKeyboard, 120); };
   window.addEventListener("resize", relayout);

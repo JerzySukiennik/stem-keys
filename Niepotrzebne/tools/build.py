@@ -58,6 +58,8 @@ def write_player(dest):
         if p.exists():
             previews[c["id"]] = base64.b64encode(p.read_bytes()).decode()
     song = {k: res[k] for k in ["meta", "duration", "candidates", "mixes", "tune"]}
+    if res.get("timeline"):
+        song["timeline"] = res["timeline"]
     song["previews"] = previews
     (dest / "dane.js").write_text("window.SONG = " + json.dumps(song, separators=(",", ":")) + ";\n")
     core = strip_module((ROOT / "synth-core.js").read_text())
